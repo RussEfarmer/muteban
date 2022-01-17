@@ -59,6 +59,7 @@ local function mb_addban(ply, length, reason, admin, type)
 			--Create new record
 			sql.Query("INSERT INTO mb_gagbandata (steamid, username, ban_length, ban_time, reason, admin_username, admin_steamid) VALUES ("..sql.SQLStr(ply_steamid)..", "..sql.SQLStr(ply_username)..", "..length..", "..timeNow..", "..sql.SQLStr(reason)..", "..sql.SQLStr(admin_name)..", "..sql.SQLStr(admin_steamid)..")")
 		end
+	end
 end 
 
 --Returns true if success, false if failure
@@ -87,7 +88,7 @@ end
 --Query volume shouldnt be a big problem with the numbers we're working with since we're not committing any data extremely fast, and we have an index.
 local function mb_bancheck()
 	for k,v in pairs(player.GetAll()) do
-		if (not v or not isValid(v) then return end)
+		if not v or not isValid(v) then return end
 		--Mute check
 		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
 		if playerexists_query then
@@ -110,6 +111,7 @@ local function mb_bancheck()
 				RunConsoleCommand("ulx", "ungagban", "$"..v:SteamID())
 			else
 				v.mb_gagged = true
+			end
 		end
 	end
 end
@@ -132,7 +134,8 @@ local function mb_playerIsGagged(steamid)
 	end
 end
 
---TIME TO GET FUNKY
+--The bone zone
+--(Where code actually runs)
 if SERVER then
 	mb_initialize()
 	--Gag hook
@@ -151,7 +154,7 @@ if SERVER then
 	--Mute hook, no need to check for evades here since we query every time a message is sent
 	hook.Add("PlayerSay", "mb_mutehook", function(ply) 
 		if mb_playerIsMuted(ply:SteamID()) then
-			return ""
+			return "" end
 	end)
 end
 
@@ -171,12 +174,17 @@ muteban:defaultAccess( ULib.ACCESS_ADMIN )
 muteban:addParam{ type=ULib.cmds.PlayerArg }
 muteban:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma", ULib.cmds.optional, ULib.cmds.allowTimeString, min=0 }
 muteban:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
-muteban:help( "Mutes a player for some time, or forever." )
+muteban:help( "Mutes a player for some time, or forever.")
 
 --Unmuteban
-function ulx.unmuteban( calling_ply, target_ply)
-	ulx.fancyLogAdmin( calling_ply, " unmuted " target_ply)
-	mb_unban(target_ply, "mute")
+function ulx.unmuteban(calling_ply, target_ply)
+	ulx.fancyLogAdmin( calling_ply, " unmuted "..target_ply)
+	local result = mb_unban(target_ply, "mute")
+	if result == true then
+		ulx.fancyLogAdmin( calling_ply, " unmuted "..target_ply)
+	else
+		ULib.tsayError(calling_ply, "Player is not muted")
+	end
 end
 local unmuteban = ulx.command( "Chat", "ulx unmuteban", ulx.unmuteban, "!unmuteban" )
 unmuteban:defaultAccess( ULib.ACCESS_ADMIN )
@@ -202,10 +210,15 @@ gagban:help( "Gag a player for some time, or forever." )
 
 --Ungagban
 function ulx.ungagban( calling_ply, target_ply)
-	ulx.fancyLogAdmin( calling_ply, " ungagged " target_ply)
-	mb_unban(target_ply, "gag")
+	local result = mb_unban(target_ply, "gag")
+	if result == true then
+		ulx.fancyLogAdmin( calling_ply, " ungagged "..target_ply)
+	else
+		ULib.tsayError(calling_ply, "Player is not gagged")
+	end
 end
 local ungagban = ulx.command( "Chat", "ulx ungagban", ulx.muteban, "!ungagban" )
 ungagban:defaultAccess( ULib.ACCESS_ADMIN )
 ungagban:addParam{ type=ULib.cmds.PlayerArg }
 ungagban:help( "Ungags a player." )
+
