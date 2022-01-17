@@ -1,6 +1,7 @@
 
 --DATABASE TOOLS
 --Initialize our tables
+--CHECK IF INDICES EXIST!!!
 local function mb_initialize()
 	if sql.TableExists("mb_mutebandata") && sql.TableExists("mb_gagbandata") then
 		print("Mute/gagban tables are ready")
@@ -22,7 +23,6 @@ end
 --Sets up data from our ULX commands and updates the database
 local function mb_addban(ply, length, reason, admin, type)
 	if reason == "" then reason = nil end
-
 	--Set up admin name/steamid
 	--NEEDS FIXING FOR NON-PLAYER CALLING PLY
 	local admin_username, admin_steamid
@@ -37,7 +37,6 @@ local function mb_addban(ply, length, reason, admin, type)
 	--Get steamid and nickname to store
 	local ply_steamid = ply:SteamID()
 	local ply_username = ply:Nick()
-
 	local timeNow = os.time()
 	--DANGER ZONE: DATABASE UPDATES & INSERTS
 	--Mutes
@@ -85,7 +84,38 @@ local function mb_unban(ply, type)
 	end
 end
 
---WHERE THE FUN BEGINS
+--Does the heavy lifting of checking mutes of connected players. Will be ran on a timer. Efficiency improvements to be made here! Try to get the queries down.
+--Query volume shouldnt be a big problem with the numbers we're working with since we're not committing any data extremely fast, and we have an index.
+local function mb_bancheck()
+	for k,v in pairs(player.GetAll()) do
+		if (not v or not isValid(v) then return end)
+
+		--Mute check
+		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+		if playerexists_query then
+			local timebanned = sql.QueryValue("SELECT ban_time FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+			local banlength = sql.QueryValue("SELECT ban_length FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+			local timenow = os.time()
+			if (timebanned + banlength) < timenow then
+				RunConsoleCommand("ulx", "unmuteban", "$"..v:SteamID())
+			end
+		end
+
+		--Gag check
+		local playerexists_query = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+		if playerexists_query then
+			local timebanned = sql.QueryValue("SELECT ban_time FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+			local banlength = sql.QueryValue("SELECT ban_length FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+			local timenow = os.time()
+			if (timebanned + banlength) < timenow then
+				RunConsoleCommand("ulx", "ungagban", "$"..v:SteamID())
+			else
+				v.mb_gagged = true
+		end
+	end
+end
+
+--WHERE THE ACTION HAPPENS
 if SERVER then
 	mb_initialize()
 	--Gag hook
@@ -107,8 +137,6 @@ if SERVER then
 			return ""
 	end)
 end
-
-
 
 --ULX STUFF
 --Muteban ULX command, based largely on ulx ban
