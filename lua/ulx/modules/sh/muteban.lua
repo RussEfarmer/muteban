@@ -1,7 +1,6 @@
-
---DATABASE TOOLS
+--Addon written on 1/16/2022 by RussEfarmer
+--UTILITIES
 --Initialize our tables
---CHECK IF INDICES EXIST!!!
 local function mb_initialize()
 	if sql.TableExists("mb_mutebandata") && sql.TableExists("mb_gagbandata") then
 		print("Mute/gagban tables are ready")
@@ -20,7 +19,7 @@ local function mb_initialize()
 	end
 end
 
---Sets up data from our ULX commands and updates the database
+--Adds and updates ban records
 local function mb_addban(ply, length, reason, admin, type)
 	if reason == "" then reason = nil end
 	--Set up admin name/steamid
@@ -89,7 +88,6 @@ end
 local function mb_bancheck()
 	for k,v in pairs(player.GetAll()) do
 		if (not v or not isValid(v) then return end)
-
 		--Mute check
 		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
 		if playerexists_query then
@@ -97,6 +95,7 @@ local function mb_bancheck()
 			local banlength = sql.QueryValue("SELECT ban_length FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
 			local timenow = os.time()
 			if (timebanned + banlength) < timenow then
+				--Prevent command injection by targeting with steamid
 				RunConsoleCommand("ulx", "unmuteban", "$"..v:SteamID())
 			end
 		end
@@ -115,7 +114,25 @@ local function mb_bancheck()
 	end
 end
 
---WHERE THE ACTION HAPPENS
+--Check if a player is muted by ID
+local function mb_playerIsMuted(steamid)
+	local querycheck = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(steamid)";")
+	if querycheck then
+		return true
+	else return false
+	end
+end
+
+--Check if a player is gagged by ID
+local function mb_playerIsGagged(steamid)
+	local querycheck = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(steamid)";")
+	if querycheck then
+		return true
+	else return false
+	end
+end
+
+--TIME TO GET FUNKY
 if SERVER then
 	mb_initialize()
 	--Gag hook
@@ -147,7 +164,6 @@ function ulx.muteban( calling_ply, target_ply, minutes, reason)
 	local str = "#A muted #T "..time
 	if reason and reason ~= "" then str = str.. " (#s)" end
 	ulx.fancyLogAdmin( calling_ply, str, target_ply, minutes ~= 0 and ULib.secondsToStringTime(minutes * 60) or reason, reason)
-
 	mb_addban(target_ply, minutes, reason, calling_ply, "mute")
 end
 local muteban = ulx.command( "Chat", "ulx muteban", ulx.muteban, "!muteban" )
@@ -157,6 +173,16 @@ muteban:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma",
 muteban:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
 muteban:help( "Mutes a player for some time, or forever." )
 
+--Unmuteban
+function ulx.unmuteban( calling_ply, target_ply)
+	ulx.fancyLogAdmin( calling_ply, " unmuted " target_ply)
+	mb_unban(target_ply, "mute")
+end
+local unmuteban = ulx.command( "Chat", "ulx unmuteban", ulx.unmuteban, "!unmuteban" )
+unmuteban:defaultAccess( ULib.ACCESS_ADMIN )
+unmuteban:addParam{ type=ULib.cmds.PlayerArg }
+unmuteban:help( "Unmutes a player." )
+
 --Gagban command
 function ulx.gagban( calling_ply, target_ply, minutes, reason)
 	minutes = math.ceil(minutes)
@@ -165,7 +191,6 @@ function ulx.gagban( calling_ply, target_ply, minutes, reason)
 	local str = "#A gagged #T "..time
 	if reason and reason ~= "" then str = str.. " (#s)" end
 	ulx.fancyLogAdmin( calling_ply, str, target_ply, minutes ~= 0 and ULib.secondsToStringTime(minutes * 60) or reason, reason)
-
 	mb_addban(target_ply, minutes, reason, calling_ply, "gag")
 end
 local gagban = ulx.command( "Chat", "ulx gagban", ulx.gagban, "!gagban" )
@@ -174,3 +199,13 @@ gagban:addParam{ type=ULib.cmds.PlayerArg }
 gagban:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma", ULib.cmds.optional, ULib.cmds.allowTimeString, min=0 }
 gagban:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
 gagban:help( "Gag a player for some time, or forever." )
+
+--Ungagban
+function ulx.ungagban( calling_ply, target_ply)
+	ulx.fancyLogAdmin( calling_ply, " ungagged " target_ply)
+	mb_unban(target_ply, "gag")
+end
+local ungagban = ulx.command( "Chat", "ulx ungagban", ulx.muteban, "!ungagban" )
+ungagban:defaultAccess( ULib.ACCESS_ADMIN )
+ungagban:addParam{ type=ULib.cmds.PlayerArg }
+ungagban:help( "Ungags a player." )
