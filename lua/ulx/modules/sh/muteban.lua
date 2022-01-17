@@ -1,4 +1,4 @@
---Addon written on 1/16/2022 by RussEfarmer
+--Addon written on 1/17/2022 by RussEfarmer
 --UTILITIES
 --Initialize our tables
 local function mb_initialize()
@@ -84,6 +84,7 @@ local function mb_banid(steamid, length, reason, admin, type)
 		username = nil
 	else
 		username = plybysteamid:Nick()
+	end
 	local timeNow = os.time()
 	--DANGER ZONE: DATABASE UPDATES & INSERTS
 	--Mutes
@@ -212,7 +213,7 @@ if SERVER then
 	--Run init
 	mb_initialize()
 	--Gag hook
-	--We can't query the db straight from this hook without causing massive lag, so ply.mb_gagged is used instead. Keep it updated!
+	--We can't query the db straight from this hook without causing massive lag, so ply.mb_gagged is used instead. Keep it updated! mb_checkbans() should do the trick.
 	hook.Add("PlayerCanHearPlayersVoice", "mb_gaghook", function(listener, talker)
 		if talker.mb_gagged then return false end
 	end)
@@ -249,6 +250,7 @@ end
 
 --Refresh and scrub timers
 timer.Create("mb_refreshtimer", 2, 0, mb_bancheck)
+--Every 15 minutes or so
 timer.Create("mb_ban_scrubber", 600, 0, mb_scrubbans)
 
 
@@ -328,6 +330,7 @@ function ulx.mutebanid( calling_ply, steamid, minutes, reason)
 		local nick = nil
 	else
 		local nick = target_ply:Nick()
+	end
 	
 	--Assembles ban reason
 	minutes = math.ceil(minutes)
@@ -337,6 +340,7 @@ function ulx.mutebanid( calling_ply, steamid, minutes, reason)
 	displayid = steamid
 	if nick then
 		displayid = displayid.."("..nick..") "
+	end
 	if reason and reason ~= "" then str = str .. " (#4s)" end
 	ulx.fancyLogAdmin( calling_ply, str, displayid, minutes ~= 0 and ULib.secondsToStringTime( minutes * 60 ) or reason, reason)
 	mb_banid(steamid, minutes, reason, calling_ply, "mute")
@@ -360,6 +364,7 @@ function ulx.gagbanid( calling_ply, steamid, minutes, reason)
 		local nick = nil
 	else
 		local nick = target_ply:Nick()
+	end
 	
 	--Assembles ban reason
 	minutes = math.ceil(minutes)
@@ -369,6 +374,7 @@ function ulx.gagbanid( calling_ply, steamid, minutes, reason)
 	displayid = steamid
 	if nick then
 		displayid = displayid.."("..nick..") "
+	end
 	if reason and reason ~= "" then str = str .. " (#4s)" end
 	ulx.fancyLogAdmin( calling_ply, str, displayid, minutes ~= 0 and ULib.secondsToStringTime( minutes * 60 ) or reason, reason)
 	mb_banid(steamid, minutes, reason, calling_ply, "gag")
