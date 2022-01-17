@@ -121,8 +121,7 @@ local function mb_playerIsMuted(steamid)
 	local querycheck = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(steamid)";")
 	if querycheck then
 		return true
-	else return false
-	end
+	else return false end
 end
 
 --Check if a player is gagged by ID
@@ -130,22 +129,23 @@ local function mb_playerIsGagged(steamid)
 	local querycheck = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(steamid)";")
 	if querycheck then
 		return true
-	else return false
-	end
+	else return false end
 end
 
 --The bone zone
 --(Where code actually runs)
 if SERVER then
+	--Run init
 	mb_initialize()
 	--Gag hook
-	--We can't query the db straight from this hook without causing massive lag, so ply.mb_gagged is used instead
+	--We can't query the db straight from this hook without causing massive lag, so ply.mb_gagged is used instead. Keep it updated!
 	hook.Add("PlayerCanHearPlayersVoice", "mb_gaghook", function(listener, talker)
 		if talker.mb_gagged then return false end
 	end)
 
 	--Prevents gag evades
 	hook.Add("PlayerAuthed", "mb_gagevadehook", function(ply)
+		mb_bancheck()
 		if mb_playerIsGagged(ply:SteamID()) then
 			ply.mb_gagged = true
 		else ply.mb_gagged = false end
@@ -153,8 +153,22 @@ if SERVER then
 
 	--Mute hook, no need to check for evades here since we query every time a message is sent
 	hook.Add("PlayerSay", "mb_mutehook", function(ply) 
+		mb_bancheck()
 		if mb_playerIsMuted(ply:SteamID()) then
 			return "" end
+	end)
+end
+
+if CLIENT then
+	--Basically a rip of permagag notification code
+	local lastGagNotifTime = -1
+	hook.Add("PlayerStartVoice", "mb_gagnotif", function()
+		if ply:GetNWBool("mb_gagged") then
+			if (lastGagNotifTime + 10) < CurTime() then
+				ULib.csay(ply, "You are gagged. Nobody can hear you!", nil, 3)
+				lastGagNotifTime = CurTime()
+			end
+		end
 	end)
 end
 
@@ -221,4 +235,3 @@ local ungagban = ulx.command( "Chat", "ulx ungagban", ulx.muteban, "!ungagban" )
 ungagban:defaultAccess( ULib.ACCESS_ADMIN )
 ungagban:addParam{ type=ULib.cmds.PlayerArg }
 ungagban:help( "Ungags a player." )
-
