@@ -1,5 +1,6 @@
 
---Database setup
+--DATABASE TOOLS
+--Initialize our tables
 local function mb_initialize()
 	if sql.TableExists("mb_mutebandata") && sql.TableExists("mb_gagbandata") then
 		print("Mute/gagban tables are ready")
@@ -17,13 +18,13 @@ local function mb_initialize()
 		end
 	end
 end
-mb_initialize()
 
 --Sets up data from our ULX commands and updates the database
 local function mb_addban(ply, length, reason, admin, type)
 	if reason == "" then reason = nil end
 
 	--Set up admin name/steamid
+	--NEEDS FIXING FOR NON-PLAYER CALLING PLY
 	local admin_username, admin_steamid
 	if admin then
 		admin_username = "(Console)"
@@ -33,24 +34,83 @@ local function mb_addban(ply, length, reason, admin, type)
 			admin_steamid = admin:SteamID()
 		end
 	end
+	--Get steamid and nickname to store
 	local ply_steamid = ply:SteamID()
 	local ply_username = ply:Nick()
 
 	local timeNow = os.time()
+	--DANGER ZONE: DATABASE UPDATES & INSERTS
+	--Mutes
 	if type == "mute" then
-		print(admin_name)
-		print(admin_steamid)
-		--Update existing mute record
 		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		if playerexists_query then
+			--Update existing mute record
 			sql.Query("UPDATE mb_mutebandata SET username = "..sql.SQLStr(ply_username)..", ban_length = "..length..", ban_time = "..timeNow..", reason = "..sql.SQLStr(reason)..", admin_username = "..sql.SQLStr(admin_name)..", admin_steamid = "..sql.SQLStr(admin_steamid).." WHERE steamid = "..sql.SQLStr(ply_steamid))
 		else
+			--Create new record
 			sql.Query("INSERT INTO mb_mutebandata (steamid, username, ban_length, ban_time, reason, admin_username, admin_steamid) VALUES ("..sql.SQLStr(ply_steamid)..", "..sql.SQLStr(ply_username)..", "..length..", "..timeNow..", "..sql.SQLStr(reason)..", "..sql.SQLStr(admin_name)..", "..sql.SQLStr(admin_steamid)..")")
 		end
-	end
+
+	--Gags
+	elseif type == "gag" then
+		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+		if playerexists_query then
+			--Update existing gag record
+			sql.Query("UPDATE mb_gagbandata SET username = "..sql.SQLStr(ply_username)..", ban_length = "..length..", ban_time = "..timeNow..", reason = "..sql.SQLStr(reason)..", admin_username = "..sql.SQLStr(admin_name)..", admin_steamid = "..sql.SQLStr(admin_steamid).." WHERE steamid = "..sql.SQLStr(ply_steamid))
+		else
+			--Create new record
+			sql.Query("INSERT INTO mb_gagbandata (steamid, username, ban_length, ban_time, reason, admin_username, admin_steamid) VALUES ("..sql.SQLStr(ply_steamid)..", "..sql.SQLStr(ply_username)..", "..length..", "..timeNow..", "..sql.SQLStr(reason)..", "..sql.SQLStr(admin_name)..", "..sql.SQLStr(admin_steamid)..")")
+		end
 end 
 
+--Returns true if success, false if failure
+local function mb_unban(ply, type)
+	ply_steamid = ply:SteamID()
+	--Mutes
+	--DANGER ZONE: DELETES MUTE/GAG RECORDS
+	if type == "mute" then
+		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+		if playerexists_query then
+			--Remove record
+			sql.Query("DELETE FROM mb_mutedata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+			return true
+		else return false end
+	elseif type == "gag" then
+		local playerexists_query = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+		if playerexists_query then
+			--Remove record
+			sql.Query("DELETE FROM mb_gagdata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+			return true
+		else return false end
+	end
+end
 
+--WHERE THE FUN BEGINS
+if SERVER then
+	mb_initialize()
+	--Gag hook
+	--We can't query the db straight from this hook without causing massive lag, so ply.mb_gagged is used instead
+	hook.Add("PlayerCanHearPlayersVoice", "mb_gaghook", function(listener, talker)
+		if talker.mb_gagged then return false end
+	end)
+
+	--Prevents gag evades
+	hook.Add("PlayerAuthed", "mb_gagevadehook", function(ply)
+		if mb_playerIsGagged(ply:SteamID()) then
+			ply.mb_gagged = true
+		else ply.mb_gagged = false end
+	end)
+
+	--Mute hook, no need to check for evades here since we query every time a message is sent
+	hook.Add("PlayerSay", "mb_mutehook", function(ply) 
+		if mb_playerIsMuted(ply:SteamID()) then
+			return ""
+	end)
+end
+
+
+
+--ULX STUFF
 --Muteban ULX command, based largely on ulx ban
 function ulx.muteban( calling_ply, target_ply, minutes, reason)
 	minutes = math.ceil(minutes)
