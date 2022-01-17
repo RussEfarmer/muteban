@@ -378,4 +378,4 @@ gagbanid:defaultAccess( ULib.ACCESS_ADMIN )
 gagbanid:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
 gagbanid:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma", ULib.cmds.optional, ULib.cmds.allowTimeString, min=0 }
 gagbanid:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
-gagbanid:help( "Mutes a player by ID for some time, or forever.")
+gagbanid:help( "Gags a player by ID for some time, or forever.")
