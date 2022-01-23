@@ -134,10 +134,11 @@ local function mb_banid(steamid, length, reason, admin, type)
 		end
 	--Gags
 	elseif type == "gag" then
-		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+		local playerexists_query = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		if playerexists_query then
 			--Update existing gag record
-			sql.Query("UPDATE mb_gagbandata SET username = "..sql.SQLStr(username)..", ban_length = "..length..", ban_time = "..timeNow..", reason = "..sql.SQLStr(reason)..", admin_username = "..sql.SQLStr(admin_name)..", admin_steamid = "..sql.SQLStr(admin_steamid).." WHERE steamid = "..sql.SQLStr(ply_steamid)..";")		else
+			sql.Query("UPDATE mb_gagbandata SET username = "..sql.SQLStr(username)..", ban_length = "..length..", ban_time = "..timeNow..", reason = "..sql.SQLStr(reason)..", admin_username = "..sql.SQLStr(admin_name)..", admin_steamid = "..sql.SQLStr(admin_steamid).." WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+		else
 			--Create new record
 			sql.Query("INSERT INTO mb_gagbandata (steamid, username, ban_length, ban_time, reason, admin_username, admin_steamid) VALUES ("..sql.SQLStr(ply_steamid)..", "..sql.SQLStr(username)..", "..length..", "..timeNow..", "..sql.SQLStr(reason)..", "..sql.SQLStr(admin_name)..", "..sql.SQLStr(admin_steamid)..");")
 		end
@@ -176,14 +177,14 @@ local function mb_unbanid(steamid, type)
 		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		if playerexists_query then
 			--Remove record
-			sql.Query("DELETE FROM mb_mutedata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+			sql.Query("DELETE FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 			return true
 		else return false end
 	elseif type == "gag" then
 		local playerexists_query = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		if playerexists_query then
 			--Remove record
-			sql.Query("DELETE FROM mb_gagdata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
+			sql.Query("DELETE FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 			return true
 		else return false end
 	end
@@ -200,7 +201,6 @@ end
 
 --Check if a player is gagged by ID
 local function mb_playerIsGagged(steamid)
-	print(steamid)
 	local querycheck = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(steamid)..";")
 	if querycheck then
 		return true
@@ -259,6 +259,8 @@ timer.Create("mb_ban_scrubber", 600, 0, mb_scrubbans)
 
 
 --ULX STUFF
+--MORE COMMENTS BECAUSE I KEEP LOSING IT WHILE SCROLLING
+
 --Muteban ULX command, based largely on ulx ban
 function ulx.muteban( calling_ply, target_ply, minutes, reason)
 	local time = "for #s"
@@ -275,6 +277,7 @@ muteban:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma",
 muteban:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
 muteban:help( "Mutes a player for some time, or forever.")
 
+
 --Unmuteban
 function ulx.unmuteban(calling_ply, target_ply)
 	local result = mb_unban(target_ply, "mute")
@@ -289,7 +292,8 @@ unmuteban:defaultAccess( ULib.ACCESS_ADMIN )
 unmuteban:addParam{ type=ULib.cmds.PlayerArg }
 unmuteban:help( "Unmutes a player." )
 
---Gagban command
+
+--Gagban
 function ulx.gagban( calling_ply, target_ply, minutes, reason)
 	local time = "for #s"
 	if minutes == 0 then time = "permanently" end
@@ -305,11 +309,11 @@ gagban:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma", 
 gagban:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
 gagban:help( "Gag a player for some time, or forever." )
 
+
 --Ungagban
 function ulx.ungagban( calling_ply, target_ply)
 	local result = mb_unban(target_ply, "gag")
 	if result == true then
-		print(result)
 		ulx.fancyLogAdmin( calling_ply, "#A ungagged #T", target_ply )
 	else
 		ULib.tsayError(calling_ply, "Player is not gagged")
@@ -320,8 +324,10 @@ ungagban:defaultAccess( ULib.ACCESS_ADMIN )
 ungagban:addParam{ type=ULib.cmds.PlayerArg }
 ungagban:help( "Ungags a player." )
 
+
+--Mutebanid
 function ulx.mutebanid( calling_ply, steamid, minutes, reason)
-	steamid = steamid.upper()
+	steamid = string.upper(steamid)
 	if not ULib.isValidSteamID(steamid) then
 		ULib.tsayError(calling_ply, "Invalid Steamid")
 		return
@@ -329,9 +335,9 @@ function ulx.mutebanid( calling_ply, steamid, minutes, reason)
 	--Gets nick if possible
 	local target_ply = player.GetBySteamID(steamid)
 	if target_ply == false then
-		local nick = nil
+		nick = nil
 	else
-		local nick = target_ply:Nick()
+		nick = target_ply:Nick()
 	end
 	
 	--Assembles ban reason
@@ -340,9 +346,9 @@ function ulx.mutebanid( calling_ply, steamid, minutes, reason)
 	local str = "#A muted steamid #s "
 	displayid = steamid
 	if nick then
-		displayid = displayid.."("..nick..") "
+		displayid = displayid.." ("..nick..") "
 	end
-	if reason and reason ~= "" then str = str .. " (#4s)" end
+	if reason and reason ~= "" then str = str .. "for #4s" end
 	ulx.fancyLogAdmin( calling_ply, str, displayid, minutes ~= 0 and ULib.secondsToStringTime( minutes * 60 ) or reason, reason)
 	mb_banid(steamid, minutes*60, reason, calling_ply, "mute")
 end
@@ -353,8 +359,46 @@ mutebanid:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma
 mutebanid:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
 mutebanid:help( "Mutes a player by ID for some time, or forever.")
 
+
+--Unmutebanid
+function ulx.unmutebanid( calling_ply, steamid)
+	steamid = string.upper(steamid)
+	if not ULib.isValidSteamID(steamid) then
+		ULib.tsayError(calling_ply, "Invalid Steamid")
+		return
+	end
+	--Gets nick if possible
+	local target_ply = player.GetBySteamID(steamid)
+	if target_ply == false then
+		nick = nil
+	else
+		nick = target_ply:Nick()
+	end
+	print(nick)
+	--Assembles ban reason
+	local str = "#A unmuted steamid #s "
+	local displayid = steamid
+	if nick then
+		displayid = displayid.." ("..nick..") "
+	end
+	
+	--Does the work
+	local result = mb_unbanid(steamid, "mute")
+	if result == true then
+		ulx.fancyLogAdmin( calling_ply, str, displayid)
+	else
+		ULib.tsayError(calling_ply, "Player is not muted")
+	end
+end
+local unmutebanid = ulx.command( "Chat", "ulx unmutebanid", ulx.unmutebanid, "!unmutebanid" )
+unmutebanid:defaultAccess( ULib.ACCESS_ADMIN )
+unmutebanid:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
+unmutebanid:help( "Unmutes a player by steamid")
+
+
+--Gagbanid
 function ulx.gagbanid( calling_ply, steamid, minutes, reason)
-	steamid = steamid.upper()
+	steamid = string.upper(steamid)
 	if not ULib.isValidSteamID(steamid) then
 		ULib.tsayError(calling_ply, "Invalid Steamid")
 		return
@@ -370,7 +414,7 @@ function ulx.gagbanid( calling_ply, steamid, minutes, reason)
 	--Assembles ban reason
 	local time = "for #s"
 	if minutes == 0 then time = "permanently" end
-	local str = "#A muted steamid #s "
+	local str = "#A gagged steamid #s "
 	displayid = steamid
 	if nick then
 		displayid = displayid.."("..nick..") "
@@ -385,3 +429,39 @@ gagbanid:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
 gagbanid:addParam{ type=ULib.cmds.NumArg, default=5, hint="Minutes, 0 for perma", ULib.cmds.optional, ULib.cmds.allowTimeString, min=0 }
 gagbanid:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.cmds.TakeRestOfLine}
 gagbanid:help( "Gags a player by ID for some time, or forever.")
+
+
+--Ungagbanid
+function ulx.unmutebanid( calling_ply, steamid)
+	steamid = string.upper(steamid)
+	if not ULib.isValidSteamID(steamid) then
+		ULib.tsayError(calling_ply, "Invalid Steamid")
+		return
+	end
+	--Gets nick if possible
+	local target_ply = player.GetBySteamID(steamid)
+	if target_ply == false then
+		nick = nil
+	else
+		nick = target_ply:Nick()
+	end
+	print(nick)
+	--Assembles ban reason
+	local str = "#A ungagged steamid #s "
+	local displayid = steamid
+	if nick then
+		displayid = displayid.." ("..nick..") "
+	end
+	
+	--Does the work
+	local result = mb_unbanid(steamid, "gag")
+	if result == true then
+		ulx.fancyLogAdmin( calling_ply, str, displayid)
+	else
+		ULib.tsayError(calling_ply, "Player is not gagged")
+	end
+end
+local ungagbanid = ulx.command( "Chat", "ulx ungagbanid", ulx.ungagbanid, "!ungagbanid" )
+ungagbanid:defaultAccess( ULib.ACCESS_ADMIN )
+ungagbanid:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
+ungagbanid:help( "Unmutes a player by steamid")
