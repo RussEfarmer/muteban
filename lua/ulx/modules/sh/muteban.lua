@@ -19,6 +19,7 @@ local function mb_initialize()
 	end
 end
 
+
 --Does the heavy lifting of checking mutes of connected players. Will be ran on a timer. Efficiency improvements to be made here! Try to get the queries down.
 --Query volume shouldnt be a big problem with the numbers we're working with since we're not committing any data extremely fast, and we have an index.
 local function mb_bancheck()
@@ -44,9 +45,9 @@ local function mb_bancheck()
 			local timenow = os.time()
 			if (timebanned + banlength) < timenow then
 				RunConsoleCommand("ulx", "ungagban", "$"..v:SteamID())
-				--Clears network bool again for good measure, command should have taken care of this
 				v:SetNWBool("mb_gagged", false)
 			else
+				--Set boolean in the entity object for our gag hook
 				v.mb_gagged = true
 				v:SetNWBool("mb_gagged", true)
 			end
@@ -65,7 +66,7 @@ local function mb_addban(ply, length, reason, admin, type)
 		admin_username = "(Console)"
 		admin_steamid = nil
 		if admin:IsValid() then
-			admin_name = admin:Name()
+			admin_name = admin:Nick()
 			admin_steamid = admin:SteamID()
 		end
 	end
@@ -101,6 +102,7 @@ end
 
 --Adds bans by ID
 local function mb_banid(steamid, length, reason, admin, type)
+	local ply_steamid = steamid
 	if reason == "" then reason = nil end
 	--Set up admin name/steamid
 	--NEEDS FIXING FOR NON-PLAYER CALLING PLY
@@ -127,6 +129,7 @@ local function mb_banid(steamid, length, reason, admin, type)
 		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		if playerexists_query then
 			--Update existing mute record
+			print(ply_steamid)
 			sql.Query("UPDATE mb_mutebandata SET username = "..sql.SQLStr(username)..", ban_length = "..length..", ban_time = "..timeNow..", reason = "..sql.SQLStr(reason)..", admin_username = "..sql.SQLStr(admin_name)..", admin_steamid = "..sql.SQLStr(admin_steamid).." WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		else
 			--Create new record
@@ -148,7 +151,7 @@ end
 
 --Returns true if success, false if failure
 local function mb_unban(ply, type)
-	ply_steamid = ply:SteamID()
+	local ply_steamid = ply:SteamID()
 	--Mutes
 	--DANGER ZONE: DELETES MUTE/GAG RECORDS
 	if type == "mute" then
@@ -170,7 +173,7 @@ local function mb_unban(ply, type)
 end
 
 local function mb_unbanid(steamid, type)
-	ply_steamid = steamid
+	local ply_steamid = steamid
 	--Mutes
 	--DANGER ZONE: DELETES MUTE/GAG RECORDS
 	if type == "mute" then
@@ -208,8 +211,24 @@ local function mb_playerIsGagged(steamid)
 end
 
 --Scrubs the database
+--DANGER ZONE: DELETES DATABASE RECORDS
 local function mb_scrubbans()
-	return true end
+	local timeNow = os.time()
+	--Mutes
+	for k,v in pairs(sql.Query("SELECT steamid, ban_time, ban_length FROM mb_mutebandata;")) do
+		if (v["ban_time"] + v["ban_length"]) < timeNow then
+			sql.Query("DELETE FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v["steamid"])..";")
+		end
+	end
+	--Gags
+	for k,v in pairs(sql.Query("SELECT steamid, ban_time, ban_length FROM mb_gagbandata;")) do
+		if (v["ban_time"] + v["ban_length"]) < timeNow then
+			sql.Query("DELETE FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v["steamid"])..";")
+		end
+	end
+end
+
+
 
 --The bone zone
 --(Where code actually runs)
@@ -374,7 +393,6 @@ function ulx.unmutebanid( calling_ply, steamid)
 	else
 		nick = target_ply:Nick()
 	end
-	print(nick)
 	--Assembles ban reason
 	local str = "#A unmuted steamid #s "
 	local displayid = steamid
@@ -431,8 +449,8 @@ gagbanid:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.c
 gagbanid:help( "Gags a player by ID for some time, or forever.")
 
 
---Ungagbanid
-function ulx.unmutebanid( calling_ply, steamid)
+--Unmutebanid
+function ulx.ungagbanid( calling_ply, steamid)
 	steamid = string.upper(steamid)
 	if not ULib.isValidSteamID(steamid) then
 		ULib.tsayError(calling_ply, "Invalid Steamid")
@@ -445,9 +463,8 @@ function ulx.unmutebanid( calling_ply, steamid)
 	else
 		nick = target_ply:Nick()
 	end
-	print(nick)
 	--Assembles ban reason
-	local str = "#A ungagged steamid #s "
+	local str = "#A unmuted steamid #s "
 	local displayid = steamid
 	if nick then
 		displayid = displayid.." ("..nick..") "
