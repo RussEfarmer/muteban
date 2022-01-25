@@ -26,24 +26,23 @@ local function mb_bancheck()
 	for k,v in pairs(player.GetAll()) do
 		if not v then return end
 		--Mute check
-		local playerexists_query = sql.Query("SELECT steamid FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
-		if playerexists_query then
-			local timebanned = sql.QueryValue("SELECT ban_time FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
-			local banlength = sql.QueryValue("SELECT ban_length FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+		local player_query = sql.QueryRow("SELECT steamid, ban_time, ban_length FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+		if player_query == 0 then
+			local timebanned = player_query["ban_time"]
+			local banlength = player_query["ban_length"]
 			local timenow = os.time()
-			if (timebanned + banlength) < timenow then
+			if ((timebanned + banlength) < timenow) and not banlength == 0 then
 				--Prevent command injection by targeting with steamid
 				RunConsoleCommand("ulx", "unmuteban", "$"..v:SteamID())
 			end
 		end
-
 		--Gag check
-		local playerexists_query = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
-		if playerexists_query then
-			local timebanned = sql.QueryValue("SELECT ban_time FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
-			local banlength = sql.QueryValue("SELECT ban_length FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+		local player_query = sql.QueryRow("SELECT steamid, ban_time, ban_length FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
+		if player_query then
+			local timebanned = player_query["ban_time"]
+			local banlength = player_query["ban_length"]
 			local timenow = os.time()
-			if (timebanned + banlength) < timenow then
+			if ((timebanned + banlength) < timenow) and not banlength == 0 then
 				RunConsoleCommand("ulx", "ungagban", "$"..v:SteamID())
 				v:SetNWBool("mb_gagged", false)
 			else
@@ -129,7 +128,6 @@ local function mb_banid(steamid, length, reason, admin, type)
 		local playerexists_query = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		if playerexists_query then
 			--Update existing mute record
-			print(ply_steamid)
 			sql.Query("UPDATE mb_mutebandata SET username = "..sql.SQLStr(username)..", ban_length = "..length..", ban_time = "..timeNow..", reason = "..sql.SQLStr(reason)..", admin_username = "..sql.SQLStr(admin_name)..", admin_steamid = "..sql.SQLStr(admin_steamid).." WHERE steamid = "..sql.SQLStr(ply_steamid)..";")
 		else
 			--Create new record
@@ -215,14 +213,18 @@ end
 local function mb_scrubbans()
 	local timeNow = os.time()
 	--Mutes
-	for k,v in pairs(sql.Query("SELECT steamid, ban_time, ban_length FROM mb_mutebandata;")) do
-		if (v["ban_time"] + v["ban_length"]) < timeNow then
+	local mutesquery = sql.Query("SELECT steamid, ban_time, ban_length FROM mb_mutebandata;")
+	if not mutesquery then return true end
+	for k,v in pairs(mutesquery) do
+		if ((v["ban_time"] + v["ban_length"]) < timeNow) and not v["ban_length"] == 0 then
 			sql.Query("DELETE FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v["steamid"])..";")
 		end
 	end
 	--Gags
-	for k,v in pairs(sql.Query("SELECT steamid, ban_time, ban_length FROM mb_gagbandata;")) do
-		if (v["ban_time"] + v["ban_length"]) < timeNow then
+	local gagsquery = sql.Query("SELECT steamid, ban_time, ban_length FROM mb_gagbandata;")
+	if not gagsquery then return true end
+	for k,v in pairs(gagsquery) do
+		if ((v["ban_time"] + v["ban_length"]) < timeNow) and not v["ban_length"] == 0 then
 			sql.Query("DELETE FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v["steamid"])..";")
 		end
 	end
@@ -270,7 +272,6 @@ if CLIENT then
 		end
 	end)
 end
-
 --Refresh and scrub timers
 timer.Create("mb_refreshtimer", 1, 0, mb_bancheck)
 --Every 15 minutes or so
