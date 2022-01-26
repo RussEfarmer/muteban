@@ -191,21 +191,31 @@ local function mb_unbanid(steamid, type)
 	end
 end
 
-
---Check if a player is muted by ID
+--Check if a player is muted by ID, returns true if muted
 local function mb_playerIsMuted(steamid)
-	local querycheck = sql.Query("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(steamid)..";")
+	local querycheck = sql.Query("SELECT steamid FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(steamid)..";")
 	if querycheck then
 		return true
 	else return false end
 end
 
---Check if a player is gagged by ID
+--Check if a player is gagged by ID, returns true if gagged
 local function mb_playerIsGagged(steamid)
-	local querycheck = sql.Query("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(steamid)..";")
+	local querycheck = sql.Query("SELECT steamid FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(steamid)..";")
 	if querycheck then
 		return true
 	else return false end
+end
+
+--Get data relating to a steamid's ban, returns table with keys equal to field names
+--Mutes
+local function mb_getMuteInfo(steamid)
+	return sql.QueryRow("SELECT * FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(steamid)..";")
+end
+
+--Gags
+local function mb_getGagInfo(steamid)
+	return sql.QueryRow("SELECT * FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(steamid)..";")
 end
 
 --Scrubs the database
@@ -229,7 +239,6 @@ local function mb_scrubbans()
 		end
 	end
 end
-
 
 
 --The bone zone
@@ -275,7 +284,8 @@ end
 --Refresh and scrub timers
 timer.Create("mb_refreshtimer", 1, 0, mb_bancheck)
 --Every 15 minutes or so
-timer.Create("mb_ban_scrubber", 1, 0, mb_scrubbans)
+--Set timer smaller for debugging
+timer.Create("mb_ban_scrubber", 600, 0, mb_scrubbans)
 
 
 --ULX STUFF
@@ -483,3 +493,46 @@ local ungagbanid = ulx.command( "Chat", "ulx ungagbanid", ulx.ungagbanid, "!unga
 ungagbanid:defaultAccess( ULib.ACCESS_ADMIN )
 ungagbanid:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
 ungagbanid:help( "Unmutes a player by steamid")
+
+--Check muted players currently connected
+function ulx.mutebannedplayers(calling_ply)
+	timeNow = os.time()
+	for k,v in pairs(player.GetHumans()) do
+		if mb_playerIsMuted(v:SteamID()) then
+			local mutedata = mb_getMuteInfo(v:SteamID())
+			local timeleft = ULib.secondsToStringTime((mutedata["ban_time"] + mutedata["ban_length"]) - timeNow)
+			if tonumber(mutedata["ban_length"]) == 0 then
+				ulx.tsay(calling_ply, mutedata["username"].." ("..mutedata["steamid"]..") is muted permanently")
+			else
+				ulx.tsay(calling_ply, mutedata["username"].." ("..mutedata["steamid"]..") is muted for "..timeleft)
+			end
+		end
+	end
+end
+local mutebannedplayers = ulx.command( "Chat", "ulx mutebannedplayers", ulx.mutebannedplayers, "!mutebannedplayers", true )
+mutebannedplayers:defaultAccess( ULib.ACCESS_ADMIN )
+mutebannedplayers:help("Lists players connected that are muted")
+
+--Check gagged players currently connected
+function ulx.gagbannedplayers(calling_ply)
+	timeNow = os.time()
+	for k,v in pairs(player.GetHumans()) do
+		if mb_playerIsGagged(v:SteamID()) then
+			local gagdata = mb_getGagInfo(v:SteamID())
+			local timeleft = ULib.secondsToStringTime((gagdata["ban_time"] + gagdata["ban_length"]) - timeNow)
+			if tonumber(gagdata["ban_length"]) == 0 then
+				ulx.tsay(calling_ply, gagdata["username"].." ("..gagdata["steamid"]..") is gagged permanently")
+			else
+				ulx.tsay(calling_ply, gagdata["username"].." ("..gagdata["steamid"]..") is gagged for "..timeleft)
+			end
+		end
+	end
+end
+local gagbannedplayers = ulx.command( "Chat", "ulx gagbannedplayers", ulx.gagbannedplayers, "!gagbannedplayers", true )
+gagbannedplayers:defaultAccess( ULib.ACCESS_ADMIN )
+gagbannedplayers:help("Lists players connected that are gagged")
+
+--TODO
+--MAKE STEAMID LOOKUP
+--MAKE PLAYERS MUTED BY ADMIN TOOL
+--MAKE SECURITY SETTINGS FOR MUTE OVERRIDES
