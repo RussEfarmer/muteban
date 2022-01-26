@@ -27,11 +27,11 @@ local function mb_bancheck()
 		if not v then return end
 		--Mute check
 		local player_query = sql.QueryRow("SELECT steamid, ban_time, ban_length FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v:SteamID())..";")
-		if player_query == 0 then
+		if player_query then
 			local timebanned = player_query["ban_time"]
 			local banlength = player_query["ban_length"]
 			local timenow = os.time()
-			if ((timebanned + banlength) < timenow) and not banlength == 0 then
+			if ((timebanned + banlength) < timenow) and tonumber(banlength) ~= 0 then
 				--Prevent command injection by targeting with steamid
 				RunConsoleCommand("ulx", "unmuteban", "$"..v:SteamID())
 			end
@@ -42,7 +42,7 @@ local function mb_bancheck()
 			local timebanned = player_query["ban_time"]
 			local banlength = player_query["ban_length"]
 			local timenow = os.time()
-			if ((timebanned + banlength) < timenow) and not banlength == 0 then
+			if ((timebanned + banlength) < timenow) and tonumber(banlength) ~= 0 then
 				RunConsoleCommand("ulx", "ungagban", "$"..v:SteamID())
 				v:SetNWBool("mb_gagged", false)
 			else
@@ -216,7 +216,7 @@ local function mb_scrubbans()
 	local mutesquery = sql.Query("SELECT steamid, ban_time, ban_length FROM mb_mutebandata;")
 	if not mutesquery then return true end
 	for k,v in pairs(mutesquery) do
-		if ((v["ban_time"] + v["ban_length"]) < timeNow) and not v["ban_length"] == 0 then
+		if ((v["ban_time"] + v["ban_length"]) < timeNow) and tonumber(v["ban_length"]) ~= 0 then
 			sql.Query("DELETE FROM mb_mutebandata WHERE steamid = "..sql.SQLStr(v["steamid"])..";")
 		end
 	end
@@ -224,7 +224,7 @@ local function mb_scrubbans()
 	local gagsquery = sql.Query("SELECT steamid, ban_time, ban_length FROM mb_gagbandata;")
 	if not gagsquery then return true end
 	for k,v in pairs(gagsquery) do
-		if ((v["ban_time"] + v["ban_length"]) < timeNow) and not v["ban_length"] == 0 then
+		if ((v["ban_time"] + v["ban_length"]) < timeNow) and tonumber(v["ban_length"]) ~= 0 then
 			sql.Query("DELETE FROM mb_gagbandata WHERE steamid = "..sql.SQLStr(v["steamid"])..";")
 		end
 	end
@@ -275,7 +275,7 @@ end
 --Refresh and scrub timers
 timer.Create("mb_refreshtimer", 1, 0, mb_bancheck)
 --Every 15 minutes or so
-timer.Create("mb_ban_scrubber", 600, 0, mb_scrubbans)
+timer.Create("mb_ban_scrubber", 1, 0, mb_scrubbans)
 
 
 --ULX STUFF
