@@ -1,12 +1,9 @@
-# muteban
-This addon, an extension to ULX, adds the muteban and gagban commands. This allows admin to mute and gag players exactly like you would to ban a player from the server.
-## Problems with ULX mute/gag
-ULX Admin Mod's features are quite amazing, but the mute and gag commands, two of the most used moderation tools in the addon, have two big problems:
-1. Mutes don't stick! When a player disconnects or the map changes, previously muted or gagged players can talk again.
-2. You can't put a timer on mutes. Staff forget all the time to unmute players, which is really annoying. Why can't I just say I want to mute them for 5 minutes?
+# Muteban for ULX Admin Mod
+This addon, an extension to ULX admin mod, heavily expands on the capabilities of the mute and gag commands. Its main features include fixing mute evasion, setting a timer on mutes, permamuting, muting disconnected players, and reporting what admin muted which player.
+## Whats the big deal?
+The normal mute commands in ULX simply set a flag on the player that says if they are muted or not. This is fine, but has a fundamental flaw: when a player leaves the server, the mute is gone! This is annoying, but another thing that's also really inconvinient is not being able to put a timer on a mute. Server moderators have to remember to unmute people, which is cumbersome and sometimes doesn't happen, frustrating the player. 
 
-## Problems with my old fix
-To solve these two problems, I made an addon called Persistent Gags and Mutes (I just call it timed mutes and gags), but that included its own problems:
-1. Mute times had an accuracy of +-1 minute. This is because of how the "timed" part of timed mutes and gags worked, which is just a timer that whacks off a minute from the players mute timer every minute. The timer doesn't start at the time the mute command is issued, so its never exactly how many minutes you entered.
-2. A players muted minutes only counted down while the player is connected. This makes sense, but not at a scale of, say, a one day mute. Instead of a player being muted for 24 real life hours, they would be muted for 24 playing hours, meaning you would have to play the server for 24 hours for your mute to clear.
-3. Players didn't know when they were muted or gagged. The command echo shows up at the time of them being muted, but if they disconnect and reconnect 30 minutes later, they have no obvious way of knowing they are muted.
+But if we can mute for any duration we choose, if we want to mute someone for a huge amount of time like 2 weeks, where's the accountability? If the player says he got muted unfairly, as a server operator, you need to be able to pull up what moderator muted that player, the reason they were muted, and ask them what happened. This is especially true if you wanted to mute someone permanently, if you mute someone forever and in 5 years they join back and start asking why they were muted, you need to be able to investigate.
+
+This probably doesn't sound like a big deal at all if you're fine running your moderation without much care on how you punish rulebreakers, a lot of people are fine just leaving someone muted and not really caring about when or why, and thats okay. But for operators that want enhanced features to their mute commands and simple accountability tools built in so they can keep their moderation straight, but don't want to pay/steal for a slow and complicated MySQL based report system that your players will never use, this addon is for you.
+## Features in Depth
