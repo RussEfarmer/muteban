@@ -1,4 +1,18 @@
---Addon written on 1/17/2022 by RussEfarmer
+--Addon written on 1/27/2022 by RussEfarmer
+--CONFIG
+-------------------------------------------------
+--Configure rank ban time limits. This sets how long a rank can ban for just like in ULX, but adds additional protection that prevents long bans from being overridden by less privaged ranks.
+--The syntax is RANK_TIME_LIMITS["rank"] = time in minutes
+--Ranks not in this list can override all bans and mute for any duration
+--Don't define anything to turn off this feature
+local RANK_TIME_LIMITS = {}
+RANK_TIME_LIMITS["donor"] = 15
+RANK_TIME_LIMITS["superdonor"] = 15
+RANK_TIME_LIMITS["trusted"] = 120
+RANK_TIME_LIMITS["dtmod"] = 720 -- 12 hours
+RANK_TIME_LIMITS["moderator"] = 10080 -- 1 week
+
+--------------------------------------------------
 --UTILITIES
 --Initialize our tables
 local function mb_initialize()
@@ -18,7 +32,6 @@ local function mb_initialize()
 		end
 	end
 end
-
 
 --Does the heavy lifting of checking mutes of connected players. Will be ran on a timer. Efficiency improvements to be made here! Try to get the queries down.
 --Query volume shouldnt be a big problem with the numbers we're working with since we're not committing any data extremely fast, and we have an index.
@@ -536,3 +549,60 @@ gagbannedplayers:help("Lists players connected that are gagged")
 --MAKE STEAMID LOOKUP
 --MAKE PLAYERS MUTED BY ADMIN TOOL
 --MAKE SECURITY SETTINGS FOR MUTE OVERRIDES
+
+--Check a steamid's mute info
+function ulx.gagbaninfo(calling_ply, steamid)
+	steamid = string.upper(steamid)
+	if not ULib.isValidSteamID(steamid) then
+		ULib.tsayError(calling_ply, "Invalid Steamid")
+		return
+	end
+	timeNow = os.time()
+	if mb_playerIsGagged(steamid) then
+		local gagdata = mb_getGagInfo(steamid)
+		ulx.tsay(calling_ply, "User: "..gagdata["username"].." ("..gagdata["steamid"]..")")
+		if tonumber(gagdata["ban_length"]) == 0 then
+			ulx.tsay(calling_ply, "Ungag date: Never")
+		else
+			ulx.tsay(calling_ply, "Time left: "..ULib.secondsToStringTime((gagdata["ban_time"] + gagdata["ban_length"]) - timeNow))
+			ulx.tsay(calling_ply, "Ungag date: "..os.date('%d-%b-%Y', (gagdata["ban_time"] + gagdata["ban_length"])))
+		end
+		ulx.tsay(calling_ply, "Reason: "..gagdata["reason"])
+		ulx.tsay(calling_ply, "Date gagged: "..os.date('%d-%b-%Y', gagdata["ban_time"]))
+		ulx.tsay(calling_ply, "Admin: "..gagdata["admin_username"].." ("..gagdata["admin_steamid"]..")")
+	else
+		ULib.tsayError(calling_ply, "Player is not gagged")
+	end
+end
+local gagbaninfo = ulx.command( "Chat", "ulx gagbaninfo", ulx.gagbaninfo, "!gagbaninfo", true )
+gagbaninfo:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
+gagbaninfo:defaultAccess( ULib.ACCESS_ADMIN )
+gagbaninfo:help("Shows information about a gag")
+
+function ulx.mutebaninfo(calling_ply, steamid)
+	steamid = string.upper(steamid)
+	if not ULib.isValidSteamID(steamid) then
+		ULib.tsayError(calling_ply, "Invalid Steamid")
+		return
+	end
+	timeNow = os.time()
+	if mb_playerIsMuted(steamid) then
+		local mutedata = mb_getMuteInfo(steamid)
+		ulx.tsay(calling_ply, "User: "..mutedata["username"].." ("..mutedata["steamid"]..")")
+		if tonumber(mutedata["ban_length"]) == 0 then
+			ulx.tsay(calling_ply, "Unmute date: Never")
+		else
+			ulx.tsay(calling_ply, "Time left: "..ULib.secondsToStringTime((mutedata["ban_time"] + mutedata["ban_length"]) - timeNow))
+			ulx.tsay(calling_ply, "Unmute date: "..os.date('%d-%b-%Y', (mutedata["ban_time"] + mutedata["ban_length"])))
+		end
+		ulx.tsay(calling_ply, "Reason: "..mutedata["reason"])
+		ulx.tsay(calling_ply, "Date gagged: "..os.date('%d-%b-%Y', mutedata["ban_time"]))
+		ulx.tsay(calling_ply, "Admin: "..mutedata["admin_username"].." ("..mutedata["admin_steamid"]..")")
+	else
+		ULib.tsayError(calling_ply, "Player is not muted")
+	end
+end
+local mutebaninfo = ulx.command( "Chat", "ulx mutebaninfo", ulx.mutebaninfo, "!mutebaninfo", true )
+mutebaninfo:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
+mutebaninfo:defaultAccess( ULib.ACCESS_ADMIN )
+mutebaninfo:help("Shows information about a mute")
