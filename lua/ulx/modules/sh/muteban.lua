@@ -11,6 +11,7 @@ RANK_TIME_LIMITS["superdonor"] = 15
 RANK_TIME_LIMITS["trusted"] = 120
 RANK_TIME_LIMITS["dtmod"] = 720 -- 12 hours
 RANK_TIME_LIMITS["moderator"] = 10080 -- 1 week
+RANK_TIME_LIMITS["superadmin"] = 720
 
 --------------------------------------------------
 --UTILITIES
@@ -32,6 +33,7 @@ local function mb_initialize()
 		end
 	end
 end
+
 
 --Does the heavy lifting of checking mutes of connected players. Will be ran on a timer. Efficiency improvements to be made here! Try to get the queries down.
 --Query volume shouldnt be a big problem with the numbers we're working with since we're not committing any data extremely fast, and we have an index.
@@ -306,6 +308,30 @@ timer.Create("mb_ban_scrubber", 600, 0, mb_scrubbans)
 
 --Muteban ULX command, based largely on ulx ban
 function ulx.muteban( calling_ply, target_ply, minutes, reason)
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if minutes == 0 then
+			ULib.tsayError(calling_ply, "You cannot permanently mute")
+		end
+		if minutes > authorized_minutes then
+			ULib.tsayError(calling_ply, "You cannot mute for more than "..ULib.secondsToStringTime(authorized_minutes*60))
+			return
+		end
+		if mb_playerIsMuted(target_ply:SteamID()) == true then
+			local mutedata = mb_getMuteInfo(target_ply:SteamID())
+			if mutedata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is muted for "..ULib.secondsToStringTime(mutedata["ban_length"])..", you cannot override a mute of this length")
+				return
+			end
+			if mutedata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot override a permanent mute")
+			end
+		end
+	end
+
+	--Assembles ban reason
 	local time = "for #s"
 	if minutes == 0 then time = "permanently" end
 	local str = "#A muted #T "..time
@@ -323,6 +349,23 @@ muteban:help( "Mutes a player for some time, or forever.")
 
 --Unmuteban
 function ulx.unmuteban(calling_ply, target_ply)
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if mb_playerIsMuted(target_ply:SteamID()) == true then
+			local mutedata = mb_getMuteInfo(target_ply:SteamID())
+			if mutedata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is muted for "..ULib.secondsToStringTime(mutedata["ban_length"])..", you cannot remove a mute of this length")
+				return
+			end
+			if mutedata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot remove a permanent mute")
+				return
+			end
+		end
+	end
+	--Unban
 	local result = mb_unban(target_ply, "mute")
 	if result == true then
 		ulx.fancyLogAdmin( calling_ply, "#A unmuted #T", target_ply )
@@ -338,6 +381,29 @@ unmuteban:help( "Unmutes a player." )
 
 --Gagban
 function ulx.gagban( calling_ply, target_ply, minutes, reason)
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if minutes == 0 then
+			ULib.tsayError(calling_ply, "You cannot permanently gag")
+		end
+		if minutes > authorized_minutes then
+			ULib.tsayError(calling_ply, "You cannot gag for more than "..ULib.secondsToStringTime(authorized_minutes*60))
+			return
+		end
+		if mb_playerIsMuted(target_ply:SteamID()) == true then
+			local gagdata = mb_getGagInfo(target_ply:SteamID())
+			if gagdata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is gag for "..ULib.secondsToStringTime(gagdata["ban_length"])..", you cannot override a gag of this length")
+				return
+			end
+			if gagdata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot override a permanent gag")
+			end
+		end
+	end
+	--Assembles ban reason
 	local time = "for #s"
 	if minutes == 0 then time = "permanently" end
 	local str = "#A gagged #T "..time
@@ -355,6 +421,23 @@ gagban:help( "Gag a player for some time, or forever." )
 
 --Ungagban
 function ulx.ungagban( calling_ply, target_ply)
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if mb_playerIsGagged(target_ply:SteamID()) == true then
+			local gagdata = mb_getGagInfo(target_ply:SteamID())
+			if gagdata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is gagged for "..ULib.secondsToStringTime(gagdata["ban_length"])..", you cannot remove a mute of this length")
+				return
+			end
+			if gagdata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot remove a permanent gag")
+				return
+			end
+		end
+	end
+	
 	local result = mb_unban(target_ply, "gag")
 	if result == true then
 		ulx.fancyLogAdmin( calling_ply, "#A ungagged #T", target_ply )
