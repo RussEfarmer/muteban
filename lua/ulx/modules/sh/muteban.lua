@@ -428,7 +428,7 @@ function ulx.ungagban( calling_ply, target_ply)
 		if mb_playerIsGagged(target_ply:SteamID()) == true then
 			local gagdata = mb_getGagInfo(target_ply:SteamID())
 			if gagdata["ban_length"]*60 > authorized_minutes then
-				ULib.tsayError(calling_ply, "Player is gagged for "..ULib.secondsToStringTime(gagdata["ban_length"])..", you cannot remove a mute of this length")
+				ULib.tsayError(calling_ply, "Player is gagged for "..ULib.secondsToStringTime(gagdata["ban_length"])..", you cannot remove a gag of this length")
 				return
 			end
 			if gagdata["ban_length"] == 0 then
@@ -457,6 +457,28 @@ function ulx.mutebanid( calling_ply, steamid, minutes, reason)
 	if not ULib.isValidSteamID(steamid) then
 		ULib.tsayError(calling_ply, "Invalid Steamid")
 		return
+	end
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if minutes == 0 then
+			ULib.tsayError(calling_ply, "You cannot permanently mute")
+		end
+		if minutes > authorized_minutes then
+			ULib.tsayError(calling_ply, "You cannot mute for more than "..ULib.secondsToStringTime(authorized_minutes*60))
+			return
+		end
+		if mb_playerIsMuted(steamid) == true then
+			local mutedata = mb_getMuteInfo(steamid)
+			if mutedata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is muted for "..ULib.secondsToStringTime(mutedata["ban_length"])..", you cannot override a mute of this length")
+				return
+			end
+			if mutedata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot override a permanent mute")
+			end
+		end
 	end
 	--Gets nick if possible
 	local target_ply = player.GetBySteamID(steamid)
@@ -493,6 +515,22 @@ function ulx.unmutebanid( calling_ply, steamid)
 		ULib.tsayError(calling_ply, "Invalid Steamid")
 		return
 	end
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if mb_playerIsMuted(steamid) == true then
+			local mutedata = mb_getMuteInfo(steamid)
+			if mutedata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is muted for "..ULib.secondsToStringTime(mutedata["ban_length"])..", you cannot remove a mute of this length")
+				return
+			end
+			if mutedata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot remove a permanent mute")
+				return
+			end
+		end
+	end
 	--Gets nick if possible
 	local target_ply = player.GetBySteamID(steamid)
 	if target_ply == false then
@@ -528,6 +566,28 @@ function ulx.gagbanid( calling_ply, steamid, minutes, reason)
 		ULib.tsayError(calling_ply, "Invalid Steamid")
 		return
 	end
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if minutes == 0 then
+			ULib.tsayError(calling_ply, "You cannot permanently gag")
+		end
+		if minutes > authorized_minutes then
+			ULib.tsayError(calling_ply, "You cannot gag for more than "..ULib.secondsToStringTime(authorized_minutes*60))
+			return
+		end
+		if mb_playerIsGagged(steamid) == true then
+			local gagdata = mb_getGaggedInfo(steamid)
+			if gagdata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is gagged for "..ULib.secondsToStringTime(gagdata["ban_length"])..", you cannot override a gagged of this length")
+				return
+			end
+			if gaggeddata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot override a permanent gagged")
+			end
+		end
+	end
 	--Gets nick if possible
 	local target_ply = player.GetBySteamID(steamid)
 	if target_ply == false then
@@ -556,12 +616,28 @@ gagbanid:addParam{ type=ULib.cmds.StringArg, hint="", ULib.cmds.optional, ULib.c
 gagbanid:help( "Gags a player by ID for some time, or forever.")
 
 
---Unmutebanid
+--Ungagbanid
 function ulx.ungagbanid( calling_ply, steamid)
 	steamid = string.upper(steamid)
 	if not ULib.isValidSteamID(steamid) then
 		ULib.tsayError(calling_ply, "Invalid Steamid")
 		return
+	end
+	--Security
+	local caller_ug = calling_ply:GetUserGroup()
+	if RANK_TIME_LIMITS[calling_ply:GetUserGroup()] then
+		local authorized_minutes = RANK_TIME_LIMITS[calling_ply:GetUserGroup()]
+		if mb_playerIsGagged(steamid)) == true then
+			local gagdata = mb_getGagInfo(steamid)
+			if gagdata["ban_length"]*60 > authorized_minutes then
+				ULib.tsayError(calling_ply, "Player is gagged for "..ULib.secondsToStringTime(gagdata["ban_length"])..", you cannot remove a gag of this length")
+				return
+			end
+			if gagdata["ban_length"] == 0 then
+				ULib.tsayError(calling_ply, "You cannot remove a permanent gag")
+				return
+			end
+		end
 	end
 	--Gets nick if possible
 	local target_ply = player.GetBySteamID(steamid)
@@ -627,11 +703,6 @@ end
 local gagbannedplayers = ulx.command( "Chat", "ulx gagbannedplayers", ulx.gagbannedplayers, "!gagbannedplayers", true )
 gagbannedplayers:defaultAccess( ULib.ACCESS_ADMIN )
 gagbannedplayers:help("Lists players connected that are gagged")
-
---TODO
---MAKE STEAMID LOOKUP
---MAKE PLAYERS MUTED BY ADMIN TOOL
---MAKE SECURITY SETTINGS FOR MUTE OVERRIDES
 
 --Check a steamid's mute info
 function ulx.gagbaninfo(calling_ply, steamid)
