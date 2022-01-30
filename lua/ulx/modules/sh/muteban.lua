@@ -1,4 +1,4 @@
---Addon written on 1/27/2022 by RussEfarmer
+--Addon written on 1/30/2022 by RussEfarmer
 --CONFIG
 -------------------------------------------------
 --Configure rank ban time limits. This sets how long a rank can ban for just like in ULX, but adds additional protection that prevents long bans from being overridden by less privaged ranks.
@@ -10,7 +10,7 @@ RANK_TIME_LIMITS["donor"] = 15
 RANK_TIME_LIMITS["superdonor"] = 15
 RANK_TIME_LIMITS["trusted"] = 120
 RANK_TIME_LIMITS["dtmod"] = 720 -- 12 hours
-RANK_TIME_LIMITS["moderator"] = 20160 -- 1 week
+RANK_TIME_LIMITS["moderator"] = 20160 -- 2 weeks
 
 --------------------------------------------------
 --UTILITIES
