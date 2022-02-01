@@ -25,3 +25,9 @@ In ULX ban, if a moderator has access to the ban command, they can take any stea
 - ulx gagbannedplayers - Lists players gagged that are connected, and how long they are gagged for
 - ulx mutebaninfo <steamid> - Queries information about a mute. Lists username at time of mute, unmute date, time left on mute, mute reason, the admin and the admin steamid.
 - ulx gagbaninfo <steamid> - Queries information about a gag. Lists username at time of gag, ungag date, time left on gag, gag reason, the admin and the admin steamid.
+
+  ## Future Changes
+  - Split addon into multiple files so less has to be uploaded to the client
+  - Make player queries more efficient
+  - Improve security settings
+  - Create browser for mutes and gags
